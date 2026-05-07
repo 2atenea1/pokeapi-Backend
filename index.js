@@ -21,12 +21,13 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'https://pokeapi-production-4527.up.railway.app',
-        description: 'Servidor de Producción en Railway'
+        // URL ACTUALIZADA
+        url: 'https://pokeapi-backend-production-4cc9.up.railway.app',
+        description: 'Servidor de Producción'
       },
     ],
   },
-  // IMPORTANTE: Asegúrate de que el archivo se llame index.js
+  // CRÍTICO: Debe coincidir con el nombre de este archivo
   apis: ['./index.js'], 
 };
 
@@ -39,13 +40,8 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error('❌ Error Mongo:', err));
 
 const pokemonSchema = new mongoose.Schema({
-  id: Number,
-  nombre: String,
-  peso: String,
-  altura: String,
-  imagenFrontal: String,
-  imagenPosterior: String,
-  poderes: String
+  id: Number, nombre: String, peso: String, altura: String,
+  imagenFrontal: String, imagenPosterior: String, poderes: String
 });
 const PokemonMongo = mongoose.model('Pokemon', pokemonSchema, 'pokemon');
 
@@ -55,7 +51,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// --- RUTAS CON DOCUMENTACIÓN SWAGGER (Formato Estricto) ---
+// --- RUTAS CON COMENTARIOS PARA SWAGGER ---
 
 /**
  * @swagger
@@ -79,9 +75,9 @@ app.get('/pokemon/nosql/:nombre', async (req, res) => {
       nombre: { $regex: new RegExp(`^${nombreBusqueda}$`, 'i') } 
     });
     if (pokemon) return res.json(pokemon);
-    res.status(404).json({ message: "Pokémon no encontrado en MongoDB" });
+    res.status(404).json({ message: "No encontrado en MongoDB" });
   } catch (e) {
-    res.status(500).json({ error: "Error en el servidor NoSQL", detalle: e.message });
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -105,19 +101,13 @@ app.get('/pokemon/sql/:nombre', async (req, res) => {
     const nombreBusqueda = req.params.nombre.toLowerCase();
     const result = await pool.query('SELECT * FROM pokemon WHERE LOWER(nombre) = $1', [nombreBusqueda]);
     if (result.rows.length > 0) return res.json(result.rows[0]);
-    res.status(404).json({ message: "Pokémon no encontrado en SQL" });
+    res.status(404).json({ message: "No encontrado en SQL" });
   } catch (e) {
-    res.status(500).json({ error: "Error en el servidor SQL", detalle: e.message });
+    res.status(500).json({ error: e.message });
   }
 });
 
-// Ruta raíz para verificar que el server vive
-app.get('/', (req, res) => {
-  res.send('API de Pokémon en la Nube funcionando 🚀');
-});
+app.get('/', (req, res) => res.send('API Lista 🚀'));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor en puerto ${PORT}`);
-  console.log(`📖 Swagger: https://pokeapi-production-4527.up.railway.app/api-docs`);
-});
+app.listen(PORT, () => console.log(`🚀 Corriendo en ${PORT}`));
