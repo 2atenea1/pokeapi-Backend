@@ -7,15 +7,24 @@ const swaggerJsdoc = require('swagger-jsdoc');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+
+// --- CORRECCIÓN DE CORS (Crucial) ---
+// Esto permite que lanastudionline.com pueda hablar con Railway
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.json());
 
 // --- CONFIGURACIÓN DE SWAGGER ---
+// Simplificada para que no de error de "undefined"
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'PokeAPI Cloud - Astrid Rondon',
+      title: 'PokeAPI Cloud',
       version: '1.0.0',
     },
     servers: [{ url: 'https://pokeapi-backend-production-4cc9.up.railway.app' }],
@@ -23,11 +32,17 @@ const swaggerOptions = {
   apis: ['./index.js'],
 };
 
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+try {
+    const swaggerDocs = swaggerJsdoc(swaggerOptions);
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+} catch (e) {
+    console.log("Error cargando Swagger, pero el server seguirá vivo");
+}
 
 // --- CONEXIONES ---
-mongoose.connect(process.env.MONGO_URI).then(() => console.log('✅ Mongo OK'));
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ Mongo OK'))
+  .catch(e => console.log('❌ Error Mongo:', e.message));
 
 const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
   id: Number, nombre: String, peso: String, altura: String,
@@ -59,8 +74,8 @@ const pool = new Pool({
 app.get('/pokemon/nosql/:nombre', async (req, res) => {
   try {
     const p = await PokemonMongo.findOne({ nombre: new RegExp(`^${req.params.nombre}$`, 'i') });
-    p ? res.json(p) : res.status(404).json({ m: "No en Mongo" });
-  } catch (e) { res.status(500).json({ e: e.message }); }
+    p ? res.json(p) : res.status(404).json({ message: "No en Mongo" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 /**
@@ -81,11 +96,11 @@ app.get('/pokemon/nosql/:nombre', async (req, res) => {
 app.get('/pokemon/sql/:nombre', async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM pokemon WHERE LOWER(nombre) = $1', [req.params.nombre.toLowerCase()]);
-    r.rows.length > 0 ? res.json(r.rows[0]) : res.status(404).json({ m: "No en SQL" });
-  } catch (e) { res.status(500).json({ e: e.message }); }
+    r.rows.length > 0 ? res.json(r.rows[0]) : res.status(404).json({ message: "No en SQL" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/', (req, res) => res.send('API Online 🚀'));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Puerto ${PORT}`));
