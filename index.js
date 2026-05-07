@@ -17,47 +17,35 @@ const swaggerOptions = {
     info: {
       title: 'PokeAPI Cloud - Astrid Rondon',
       version: '1.0.0',
-      description: 'Documentación de microservicios para la Tarea 9 (SQL y NoSQL)',
     },
-    servers: [
-      {
-        // URL ACTUALIZADA
-        url: 'https://pokeapi-backend-production-4cc9.up.railway.app',
-        description: 'Servidor de Producción'
-      },
-    ],
+    servers: [{ url: 'https://pokeapi-backend-production-4cc9.up.railway.app' }],
   },
-  // CRÍTICO: Debe coincidir con el nombre de este archivo
-  apis: ['./index.js'], 
+  apis: ['./index.js'],
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// --- CONEXIÓN MONGODB (NoSQL) ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Conectado a MongoDB Atlas'))
-  .catch(err => console.error('❌ Error Mongo:', err));
+// --- CONEXIONES ---
+mongoose.connect(process.env.MONGO_URI).then(() => console.log('✅ Mongo OK'));
 
-const pokemonSchema = new mongoose.Schema({
+const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
   id: Number, nombre: String, peso: String, altura: String,
   imagenFrontal: String, imagenPosterior: String, poderes: String
-});
-const PokemonMongo = mongoose.model('Pokemon', pokemonSchema, 'pokemon');
+}), 'pokemon');
 
-// --- CONEXIÓN SUPABASE (SQL) ---
 const pool = new Pool({
   connectionString: process.env.SUPABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// --- RUTAS CON COMENTARIOS PARA SWAGGER ---
+// --- RUTAS ---
 
 /**
  * @swagger
  * /pokemon/nosql/{nombre}:
  * get:
- * summary: Consulta en MongoDB (NoSQL)
+ * summary: Consulta NoSQL
  * parameters:
  * - in: path
  * name: nombre
@@ -70,22 +58,16 @@ const pool = new Pool({
  */
 app.get('/pokemon/nosql/:nombre', async (req, res) => {
   try {
-    const nombreBusqueda = req.params.nombre.toLowerCase();
-    const pokemon = await PokemonMongo.findOne({ 
-      nombre: { $regex: new RegExp(`^${nombreBusqueda}$`, 'i') } 
-    });
-    if (pokemon) return res.json(pokemon);
-    res.status(404).json({ message: "No encontrado en MongoDB" });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const p = await PokemonMongo.findOne({ nombre: new RegExp(`^${req.params.nombre}$`, 'i') });
+    p ? res.json(p) : res.status(404).json({ m: "No en Mongo" });
+  } catch (e) { res.status(500).json({ e: e.message }); }
 });
 
 /**
  * @swagger
  * /pokemon/sql/{nombre}:
  * get:
- * summary: Consulta en Supabase (SQL)
+ * summary: Consulta SQL
  * parameters:
  * - in: path
  * name: nombre
@@ -98,20 +80,12 @@ app.get('/pokemon/nosql/:nombre', async (req, res) => {
  */
 app.get('/pokemon/sql/:nombre', async (req, res) => {
   try {
-    const nombreBusqueda = req.params.nombre.toLowerCase();
-    const result = await pool.query('SELECT * FROM pokemon WHERE LOWER(nombre) = $1', [nombreBusqueda]);
-    if (result.rows.length > 0) return res.json(result.rows[0]);
-    res.status(404).json({ message: "No encontrado en SQL" });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const r = await pool.query('SELECT * FROM pokemon WHERE LOWER(nombre) = $1', [req.params.nombre.toLowerCase()]);
+    r.rows.length > 0 ? res.json(r.rows[0]) : res.status(404).json({ m: "No en SQL" });
+  } catch (e) { res.status(500).json({ e: e.message }); }
 });
 
-app.get('/', (req, res) => res.send('API Lista 🚀'));
+app.get('/', (req, res) => res.send('API Online 🚀'));
 
-// Usa el puerto que Railway te asigne automáticamente
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Servidor encendido en el puerto ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
