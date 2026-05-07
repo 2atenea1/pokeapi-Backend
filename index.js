@@ -109,5 +109,9 @@ app.get('/pokemon/sql/:nombre', async (req, res) => {
 
 app.get('/', (req, res) => res.send('API Lista 🚀'));
 
+// Usa el puerto que Railway te asigne automáticamente
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Corriendo en ${PORT}`));
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor encendido en el puerto ${PORT}`);
+});
