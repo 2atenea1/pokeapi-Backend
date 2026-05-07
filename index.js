@@ -8,8 +8,7 @@ require('dotenv').config();
 
 const app = express();
 
-// --- CORRECCIÓN DE CORS (Crucial) ---
-// Esto permite que lanastudionline.com pueda hablar con Railway
+// --- CONFIGURACIÓN DE CORS ---
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST'],
@@ -19,15 +18,19 @@ app.use(cors({
 app.use(express.json());
 
 // --- CONFIGURACIÓN DE SWAGGER ---
-// Simplificada para que no de error de "undefined"
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'PokeAPI Cloud',
+      title: 'PokeAPI Cloud - Astrid Rondon',
       version: '1.0.0',
     },
-    servers: [{ url: 'https://pokeapi-backend-production-4cc9.up.railway.app' }],
+    servers: [
+      { 
+        url: 'https://pokeapi-backend-production-a5ec.up.railway.app',
+        description: 'Servidor Actualizado' 
+      }
+    ],
   },
   apis: ['./index.js'],
 };
@@ -36,13 +39,11 @@ try {
     const swaggerDocs = swaggerJsdoc(swaggerOptions);
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 } catch (e) {
-    console.log("Error cargando Swagger, pero el server seguirá vivo");
+    console.log("Error en Swagger:", e.message);
 }
 
 // --- CONEXIONES ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Mongo OK'))
-  .catch(e => console.log('❌ Error Mongo:', e.message));
+mongoose.connect(process.env.MONGO_URI).then(() => console.log('✅ Mongo OK'));
 
 const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
   id: Number, nombre: String, peso: String, altura: String,
