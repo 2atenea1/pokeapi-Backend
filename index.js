@@ -7,39 +7,42 @@ const swaggerJsdoc = require('swagger-jsdoc');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: '*' }));
+app.use(cors());
 app.use(express.json());
 
-// CONFIGURACIÓN DE SWAGGER (Simplificada al máximo)
+// --- 1. SWAGGER (ESTO DEBE IR PRIMERO PARA QUE NO SE CAIGA) ---
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
-    info: {
-      title: 'PokeAPI Astrid',
-      version: '1.0.0',
-    },
+    info: { title: 'PokeAPI Astrid', version: '1.0.0' },
     servers: [{ url: 'https://pokeapi-backend-production-a5ec.up.railway.app' }],
   },
-  apis: ['./index.js'], 
+  apis: ['./index.js'],
 };
 
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+try {
+  const swaggerDocs = swaggerJsdoc(swaggerOptions);
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+  console.log("✅ Swagger cargado");
+} catch (e) {
+  console.log("❌ Error en Swagger, pero el server sigue vivo");
+}
 
-// CONEXIONES
+// --- 2. CONEXIONES PROTEGIDAS ---
+// Supabase
 const pool = new Pool({
   connectionString: process.env.SUPABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 5000 // Si no conecta en 5 seg, no detiene el server
 });
 
-mongoose.connect(process.env.MONGO_URI).then(() => console.log('✅ Mongo OK'));
+// MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ Mongo OK'))
+  .catch(err => console.log('⚠️ Mongo falló, pero el server sigue'));
 
-const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
-  id: Number, nombre: String, peso: String, altura: String,
-  imagenFrontal: String, imagenPosterior: String, poderes: String
-}), 'pokemon');
+// --- 3. RUTAS (Para que Swagger las lea) ---
 
-// RUTAS (Sin comentarios complejos para evitar el Crash)
 /**
  * @swagger
  * /pokemon/sql/{nombre}:
@@ -51,9 +54,6 @@ const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
  * required: true
  * schema:
  * type: string
- * responses:
- * 200:
- * description: OK
  */
 app.get('/pokemon/sql/:nombre', async (req, res) => {
   try {
@@ -62,36 +62,11 @@ app.get('/pokemon/sql/:nombre', async (req, res) => {
     if (result.rows.length > 0) return res.json(result.rows[0]);
     res.status(404).json({ message: "No encontrado en SQL" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Error interno del servidor SQL" });
+    res.status(500).json({ error: "Error en base de datos", detalle: e.message });
   }
 });
 
-/**
- * @swagger
- * /pokemon/nosql/{nombre}:
- * get:
- * summary: Consulta NoSQL
- * parameters:
- * - in: path
- * name: nombre
- * required: true
- * schema:
- * type: string
- * responses:
- * 200:
- * description: OK
- */
-app.get('/pokemon/nosql/:nombre', async (req, res) => {
-  try {
-    const p = await PokemonMongo.findOne({ nombre: new RegExp(`^${req.params.nombre}$`, 'i') });
-    p ? res.json(p) : res.status(404).json({ message: "No encontrado en NoSQL" });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get('/', (req, res) => res.send('API Online 🚀'));
+app.get('/', (req, res) => res.send('Servidor Online 🚀'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Puerto ${PORT}`));
