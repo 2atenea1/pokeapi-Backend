@@ -14,10 +14,13 @@ app.use(express.json());
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
-    info: { title: 'PokeAPI Astrid', version: '1.0.0' },
+    info: {
+      title: 'PokeAPI Astrid',
+      version: '1.0.0',
+    },
     servers: [{ url: 'https://pokeapi-backend-production-a5ec.up.railway.app' }],
   },
-  apis: ['./index.js'],
+  apis: ['./index.js'], 
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
