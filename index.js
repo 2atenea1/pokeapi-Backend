@@ -64,7 +64,7 @@ const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
  * description: No encontrado
  */
 app.get('/pokemon/sql/:nombre', async (req, res) => {
-  try {
+   try {
     const { nombre } = req.params;
     const result = await pool.query('SELECT * FROM pokemon WHERE LOWER(nombre) = $1', [nombre.toLowerCase()]);
     if (result.rows.length > 0) return res.json(result.rows[0]);
