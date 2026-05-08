@@ -20,17 +20,28 @@ const swaggerOptions = {
     },
     servers: [{ url: 'https://pokeapi-backend-production-a5ec.up.railway.app' }],
   },
-  apis: ['./index.js'], // Esto busca los comentarios en este mismo archivo
+  apis: ['./index.js'],
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs/', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// --- CONEXIONES ---
+// --- CONEXIÓN SUPABASE (forzar IPv4) ---
+// En tu variable SUPABASE_URL cambia el host así:
+// de: db.xxxx.supabase.co
+// a:  aws-0-us-east-1.pooler.supabase.com  (connection pooler de Supabase)
+// O agrega ?family=4 para forzar IPv4:
 const pool = new Pool({
   connectionString: process.env.SUPABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  // Fuerza IPv4:
+  options: '-c search_path=public',
+  family: 4  // 👈 ESTA ES LA CLAVE
 });
+
+pool.connect()
+  .then(() => console.log('✅ Supabase/PostgreSQL OK'))
+  .catch(err => console.error('❌ Error Supabase:', err.message));
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Mongo OK'))
@@ -49,24 +60,27 @@ const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
 /**
  * @swagger
  * /pokemon/sql/{nombre}:
- * get:
- * summary: Consulta SQL en Supabase
- * parameters:
- * - in: path
- * name: nombre
- * required: true
- * schema:
- * type: string
- * responses:
- * 200:
- * description: OK
- * 404:
- * description: No encontrado
+ *   get:
+ *     summary: Consulta SQL en Supabase
+ *     parameters:
+ *       - in: path
+ *         name: nombre
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ *       404:
+ *         description: No encontrado
  */
 app.get('/pokemon/sql/:nombre', async (req, res) => {
-   try {
+  try {
     const { nombre } = req.params;
-    const result = await pool.query('SELECT * FROM pokemon WHERE LOWER(nombre) = $1', [nombre.toLowerCase()]);
+    const result = await pool.query(
+      'SELECT * FROM pokemon WHERE LOWER(nombre) = $1', 
+      [nombre.toLowerCase()]
+    );
     if (result.rows.length > 0) return res.json(result.rows[0]);
     res.status(404).json({ message: "No encontrado en SQL" });
   } catch (e) {
@@ -77,23 +91,25 @@ app.get('/pokemon/sql/:nombre', async (req, res) => {
 /**
  * @swagger
  * /pokemon/nosql/{nombre}:
- * get:
- * summary: Consulta NoSQL en MongoDB
- * parameters:
- * - in: path
- * name: nombre
- * required: true
- * schema:
- * type: string
- * responses:
- * 200:
- * description: OK
- * 404:
- * description: No encontrado
+ *   get:
+ *     summary: Consulta NoSQL en MongoDB
+ *     parameters:
+ *       - in: path
+ *         name: nombre
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ *       404:
+ *         description: No encontrado
  */
 app.get('/pokemon/nosql/:nombre', async (req, res) => {
   try {
-    const p = await PokemonMongo.findOne({ nombre: new RegExp(`^${req.params.nombre}$`, 'i') });
+    const p = await PokemonMongo.findOne({ 
+      nombre: new RegExp(`^${req.params.nombre}$`, 'i') 
+    });
     p ? res.json(p) : res.status(404).json({ message: "No encontrado en NoSQL" });
   } catch (e) {
     res.status(500).json({ error: e.message });
