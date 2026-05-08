@@ -64,7 +64,7 @@ const PokemonMongo = mongoose.model('Pokemon', new mongoose.Schema({
  * description: No encontrado
  */
 app.get('/pokemon/sql/:nombre', async (req, res) => {
-  try {
+    try {
     const { nombre } = req.params;
     const result = await pool.query('SELECT * FROM pokemon WHERE LOWER(nombre) = $1', [nombre.toLowerCase()]);
     if (result.rows.length > 0) return res.json(result.rows[0]);
@@ -92,7 +92,7 @@ app.get('/pokemon/sql/:nombre', async (req, res) => {
  * description: No encontrado
  */
 app.get('/pokemon/nosql/:nombre', async (req, res) => {
-  try {
+   try {
     const p = await PokemonMongo.findOne({ nombre: new RegExp(`^${req.params.nombre}$`, 'i') });
     p ? res.json(p) : res.status(404).json({ message: "No encontrado en NoSQL" });
   } catch (e) {
